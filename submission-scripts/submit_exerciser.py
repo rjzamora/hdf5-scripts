@@ -64,6 +64,8 @@ parser.add_argument("--perf", dest="perf", action="store_true", default=False,
                     help="Print performance counters for CCIO [Default: False]")
 parser.add_argument("--debug", dest="debug", action="store_true", default=False,
                     help="Set CCIO debug env variable [Default: False]")
+parser.add_argument("--topology", dest="topology", action="store_true", default=False,
+                    help="Compare topology-aware cb agg selection [Default: False]")
 args = parser.parse_args()
 machname = args.machine
 execname = args.execname
@@ -89,6 +91,7 @@ if args.bmult != notset: bmult = int(args.bmult)
 if args.nsizes != notset: nsizes = int(args.nsizes)
 perf = args.perf
 debug = args.debug
+topology = args.topology
 
 # ---------------------------------------------------------------------------- #
 #  Setup the basic properties of the run
@@ -179,6 +182,7 @@ os.environ["HDF5_ASYNC_IO"]="no"
 os.environ["HDF5_CUSTOM_AGG_WR"]="no"
 os.environ["HDF5_CUSTOM_AGG_RD"]="no"
 os.environ["HDF5_CUSTOM_AGG_DEBUG"]="no"
+os.environ["HDF5_TOPO_AGG"]="no"
 
 # Machine-specific execution steps:
 if machname in ["theta"]:
@@ -223,6 +227,12 @@ if machname in ["theta"]:
         cmd = cmd_root
         subprocess.call(cmd); print(cmd)
 
+        if topology:
+            os.environ["HDF5_TOPO_AGG"]="yes"
+            subprocess.call(["echo","One-sided-blocking-topo:"])
+            cmd = cmd_root
+            subprocess.call(cmd); print(cmd)
+
         if async:
 
             # CCIO With Asynchronous I/O
@@ -230,14 +240,22 @@ if machname in ["theta"]:
             os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
             os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
             os.environ["HDF5_ASYNC_IO"]="yes"
+            os.environ["HDF5_TOPO_AGG"]="no"
             subprocess.call(["echo","One-sided-async:"])
             cmd = cmd_root
             subprocess.call(cmd); print(cmd)
+
+            if topology:
+                os.environ["HDF5_TOPO_AGG"]="yes"
+                subprocess.call(["echo","One-sided-async-topo:"])
+                cmd = cmd_root
+                subprocess.call(cmd); print(cmd)
 
         # Reset env vars to non-ccio behavior
         os.environ["HDF5_CUSTOM_AGG_WR"]="no"
         os.environ["HDF5_CUSTOM_AGG_RD"]="no"
         os.environ["HDF5_ASYNC_IO"]="no"
+        os.environ["HDF5_TOPO_AGG"]="no"
 
     # Run ROMIO Collective I/O
     if romio_col:
@@ -246,6 +264,12 @@ if machname in ["theta"]:
         subprocess.call(["echo","romio two-phase:"])
         cmd = cmd_root
         subprocess.call(cmd); print(cmd)
+
+        if topology:
+            os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+            subprocess.call(["echo","romio two-phase-topo:"])
+            cmd = cmd_root; cmd.append("--topohint")
+            subprocess.call(cmd); print(cmd)
 
     # Run ROMIO Independent I/O
     if romio_ind:
@@ -297,6 +321,11 @@ elif machname in ["mac"]:
         subprocess.call(["echo","romio two-phase:"])
         cmd = cmd_root
         subprocess.call(cmd); print(cmd)
+
+        if topology:
+            subprocess.call(["echo","romio two-phase-topo:"])
+            cmd = cmd_root; cmd.append("--topohint")
+            subprocess.call(cmd); print(cmd)
 
     # Run ROMIO Independent I/O
     if romio_ind:
