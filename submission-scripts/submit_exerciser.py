@@ -214,8 +214,8 @@ if machname in ["theta"]:
     cmd.append("--dimranks")
     for i in range(dim): cmd.append(str(dimranks[i]))
     cmd.append("--metacoll"); cmd.append("--addattr"); #cmd.append("--derivedtype")
-    if ccio_perf: cmd.append("--perf")
-    if ccio_debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
+    if perf: cmd.append("--perf")
+    if debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
     cmd_root=cmd
 
     # Run CCIO
