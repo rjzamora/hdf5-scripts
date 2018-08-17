@@ -195,8 +195,8 @@ if machname in ["theta"]:
     subprocess.call(["lfs","setstripe","-c",str(lfs_count),"-S",str(lfs_size)+"m","."])
 
     # Define env and part of aprun command that wont change
-    os.environ["MPICH_MPIIO_TIMERS"]="1"
-    os.environ["MPICH_MPIIO_STATS"]="1"
+    #os.environ["MPICH_MPIIO_TIMERS"]="1"
+    #os.environ["MPICH_MPIIO_STATS"]="1"
     os.environ["MPICH_MPIIO_AGGREGATOR_PLACEMENT_DISPLAY"]="1"
     os.environ["PMI_LABEL_ERROUT"]="1"
     os.environ["MPICH_MPIIO_CB_ALIGN"]="2"
