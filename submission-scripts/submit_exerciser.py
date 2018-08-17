@@ -66,6 +66,8 @@ parser.add_argument("--debug", dest="debug", action="store_true", default=False,
                     help="Set CCIO debug env variable [Default: False]")
 parser.add_argument("--topology", dest="topology", action="store_true", default=False,
                     help="Compare topology-aware cb agg selection [Default: False]")
+parser.add_argument("--nocobalt", dest="nocobalt", action="store_true", default=False,
+                    help="Do not use COBALT env vars [Default: False]")
 args = parser.parse_args()
 machname = args.machine
 execname = args.execname
@@ -92,6 +94,7 @@ if args.nsizes != notset: nsizes = int(args.nsizes)
 perf = args.perf
 debug = args.debug
 topology = args.topology
+nocobalt = args.nocobalt
 
 # ---------------------------------------------------------------------------- #
 #  Setup the basic properties of the run
@@ -108,10 +111,10 @@ if machname in ["theta", "vesta"]:
     if not(ccio or romio_col or romio_ind):
         print("You didn't provide any settings to test - running ccio.")
         ccio = True
-    nodes=int(os.environ['COBALT_JOBSIZE'])
+    if not nocobalt: nodes=int(os.environ['COBALT_JOBSIZE'])
     print("Using "+str(nodes)+" nodes.")
     nranks=nodes*ppn
-    jobid=int(os.environ['COBALT_JOBID'])
+    #jobid=int(os.environ['COBALT_JOBID'])
     if machname in ["theta"]:
         # Allow module load/swap/list etc:
         execfile(os.environ['MODULESHOME']+'/init/python.py')
