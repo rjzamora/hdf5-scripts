@@ -66,8 +66,6 @@ parser.add_argument("--debug", dest="debug", action="store_true", default=False,
                     help="Set CCIO debug env variable [Default: False]")
 parser.add_argument("--topology", dest="topology", action="store_true", default=False,
                     help="Compare topology-aware cb agg selection [Default: False]")
-parser.add_argument("--nocobalt", dest="nocobalt", action="store_true", default=False,
-                    help="Do not use COBALT env vars [Default: False]")
 args = parser.parse_args()
 machname = args.machine
 execname = args.execname
@@ -94,7 +92,6 @@ if args.nsizes != notset: nsizes = int(args.nsizes)
 perf = args.perf
 debug = args.debug
 topology = args.topology
-nocobalt = args.nocobalt
 
 # ---------------------------------------------------------------------------- #
 #  Setup the basic properties of the run
@@ -111,7 +108,7 @@ if machname in ["theta", "vesta"]:
     if not(ccio or romio_col or romio_ind):
         print("You didn't provide any settings to test - running ccio.")
         ccio = True
-    if not nocobalt: nodes=int(os.environ['COBALT_JOBSIZE'])
+    nodes=int(os.environ['COBALT_JOBSIZE'])
     print("Using "+str(nodes)+" nodes.")
     nranks=nodes*ppn
     #jobid=int(os.environ['COBALT_JOBID'])
@@ -120,7 +117,11 @@ if machname in ["theta", "vesta"]:
         execfile(os.environ['MODULESHOME']+'/init/python.py')
         # Load the correct module for cray-mpich:
         module('unload','cray-mpich')
-        module('load','cray-mpich/'+str(mpiversion))
+        if mpiversion == "0": mpiversion = "7_7_0"
+        mpi_label = mpiversion
+        mpi_label_split = mpi_label.split("_")
+        mpi_label_dots = mpi_label_split[0]+"."+mpi_label_split[1]+"."+mpi_label_split[2]
+        module('load','cray-mpich/'+str(mpi_label_dots))
         #module('load','cray-hdf5-parallel')
         if execname == notset:
             execname = "/lus-projects/datascience/rzamora/exerciser/run-user-guide/hdf5Exerciser-theta-new-7.7.0"
@@ -230,7 +231,7 @@ if machname in ["theta"]:
         cmd = cmd_root
         subprocess.call(cmd); print(cmd)
 
-        if topology:
+        if False and topology:
             os.environ["HDF5_TOPO_AGG"]="yes"
             subprocess.call(["echo","One-sided-blocking-topo:"])
             cmd = cmd_root
