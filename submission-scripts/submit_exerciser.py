@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #COBALT -A datascience
-#COBALT -n 4
-#COBALT -t 30
-#COBALT -q debug-cache-flat
+###COBALT -n 4
+###COBALT -t 30
+###COBALT -q debug-cache-flat
 
 # Load python modules
 import subprocess
@@ -219,85 +219,87 @@ if machname in ["theta"]:
     if debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
     cmd_root=cmd
 
-    # Run CCIO
-    if ccio:
+    with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
 
-        # CCIO With Blocking I/O
-        os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-        os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
-        os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
-        os.environ["HDF5_ASYNC_IO"]="no"
-        subprocess.call(["echo","One-sided-blocking:"])
-        cmd = cmd_root
-        subprocess.call(cmd); print(cmd)
+        # Run CCIO
+        if ccio:
 
-        if False and topology:
-            os.environ["HDF5_TOPO_AGG"]="yes"
-            subprocess.call(["echo","One-sided-blocking-topo:"])
-            cmd = cmd_root
-            subprocess.call(cmd); print(cmd)
-
-        if async:
-
-            # CCIO With Asynchronous I/O
+            # CCIO With Blocking I/O
             os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
             os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
             os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
-            os.environ["HDF5_ASYNC_IO"]="yes"
-            os.environ["HDF5_TOPO_AGG"]="no"
-            subprocess.call(["echo","One-sided-async:"])
+            os.environ["HDF5_ASYNC_IO"]="no"
+            subprocess.call(["echo","One-sided-blocking:"], stdout=outf)
             cmd = cmd_root
-            subprocess.call(cmd); print(cmd)
+            subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if False and topology:
+                os.environ["HDF5_TOPO_AGG"]="yes"
+                subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
+                cmd = cmd_root
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if async:
+
+                # CCIO With Asynchronous I/O
+                os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+                os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
+                os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
+                os.environ["HDF5_ASYNC_IO"]="yes"
+                os.environ["HDF5_TOPO_AGG"]="no"
+                subprocess.call(["echo","One-sided-async:"], stdout=outf)
+                cmd = cmd_root
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+                if topology:
+                    os.environ["HDF5_TOPO_AGG"]="yes"
+                    subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
+                    cmd = cmd_root
+                    subprocess.call(cmd, stdout=outf); print(cmd)
+
+            # Reset env vars to non-ccio behavior
+            os.environ["HDF5_CUSTOM_AGG_WR"]="no"
+            os.environ["HDF5_CUSTOM_AGG_RD"]="no"
+            os.environ["HDF5_ASYNC_IO"]="no"
+            os.environ["HDF5_TOPO_AGG"]="no"
+
+        # Run ROMIO Collective I/O
+        if romio_col:
+
+            os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+            subprocess.call(["echo","romio two-phase:"], stdout=outf)
+            cmd = cmd_root
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
             if topology:
-                os.environ["HDF5_TOPO_AGG"]="yes"
-                subprocess.call(["echo","One-sided-async-topo:"])
-                cmd = cmd_root
-                subprocess.call(cmd); print(cmd)
+                os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
+                cmd = cmd_root; cmd.append("--topohint")
+                subprocess.call(cmd, stdout=outf); print(cmd)
 
-        # Reset env vars to non-ccio behavior
-        os.environ["HDF5_CUSTOM_AGG_WR"]="no"
-        os.environ["HDF5_CUSTOM_AGG_RD"]="no"
-        os.environ["HDF5_ASYNC_IO"]="no"
-        os.environ["HDF5_TOPO_AGG"]="no"
+        # Run ROMIO Independent I/O
+        if romio_ind:
 
-    # Run ROMIO Collective I/O
-    if romio_col:
-
-        os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-        subprocess.call(["echo","romio two-phase:"])
-        cmd = cmd_root
-        subprocess.call(cmd); print(cmd)
-
-        if topology:
             os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-            subprocess.call(["echo","romio two-phase-topo:"])
-            cmd = cmd_root; cmd.append("--topohint")
-            subprocess.call(cmd); print(cmd)
+            subprocess.call(["echo","romio indepio:"], stdout=outf)
+            cmd = cmd_root; cmd.append("--indepio")
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
-    # Run ROMIO Independent I/O
-    if romio_ind:
+        # Run CRAY-MPICH Collective I/O
+        if cray_col:
 
-        os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-        subprocess.call(["echo","romio indepio:"])
-        cmd = cmd_root; cmd.append("--indepio")
-        subprocess.call(cmd); print(cmd)
+            os.environ["MPICH_MPIIO_CB_ALIGN"]="2"
+            subprocess.call(["echo","cray-mpi two-phase:"], stdout=outf)
+            cmd = cmd_root
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
-    # Run CRAY-MPICH Collective I/O
-    if cray_col:
+        # Run CRAY-MPICH Independent I/O
+        if cray_ind:
 
-        os.environ["MPICH_MPIIO_CB_ALIGN"]="2"
-        subprocess.call(["echo","cray-mpi two-phase:"])
-        cmd = cmd_root
-        subprocess.call(cmd); print(cmd)
-
-    # Run CRAY-MPICH Independent I/O
-    if cray_ind:
-
-        os.environ["MPICH_MPIIO_CB_ALIGN"]="2"
-        subprocess.call(["echo","cray-mpi indepio:"])
-        cmd = cmd_root; cmd.append("--indepio")
-        subprocess.call(cmd); print(cmd)
+            os.environ["MPICH_MPIIO_CB_ALIGN"]="2"
+            subprocess.call(["echo","cray-mpi indepio:"], stdout=outf)
+            cmd = cmd_root; cmd.append("--indepio")
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
 elif machname in ["vesta"]:
 
@@ -322,21 +324,25 @@ elif machname in ["mac"]:
     # Run ROMIO Collective I/O
     if romio_col:
 
-        subprocess.call(["echo","romio two-phase:"])
-        cmd = cmd_root
-        subprocess.call(cmd); print(cmd)
+        with open("results.0", "a") as outf:
 
-        if topology:
-            subprocess.call(["echo","romio two-phase-topo:"])
-            cmd = cmd_root; cmd.append("--topohint")
-            subprocess.call(cmd); print(cmd)
+            subprocess.call(["echo","romio two-phase:"], stdout=outf, stderr=outf)
+            cmd = cmd_root
+            subprocess.call(cmd, stdout=outf, stderr=outf); print(cmd)
+
+            if topology:
+                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf, stderr=outf)
+                cmd = cmd_root; cmd.append("--topohint")
+                subprocess.call(cmd, stdout=outf, stderr=outf); print(cmd)
 
     # Run ROMIO Independent I/O
     if romio_ind:
 
-        subprocess.call(["echo","romio indepio:"])
-        cmd = cmd_root; cmd.append("--indepio")
-        subprocess.call(cmd); print(cmd)
+        with open("results.0", "a") as outf:
+
+            subprocess.call(["echo","romio indepio:"], stdout=outf, stderr=outf)
+            cmd = cmd_root; cmd.append("--indepio")
+            subprocess.call(cmd, stdout=outf, stderr=outf); print(cmd)
 
 
 # ---------------------------------------------------------------------------- #
