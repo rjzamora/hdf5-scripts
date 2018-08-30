@@ -99,12 +99,12 @@ topology = args.topology
 
 # Detect the machine (THIS_MACHINE env var should be set)
 if machname == notset: machname = os.environ['THIS_MACHINE']
-if not (machname in ["mac", "theta", "vesta"]):
+if not (machname in ["mac", "theta", "mira"]):
     machname = "theta"
     print("Error! Setting machname to "+str(machname))
 
 # ALCF resource (use COBALT)
-if machname in ["theta", "vesta"]:
+if machname in ["theta", "mira"]:
     if not(ccio or romio_col or romio_ind):
         print("You didn't provide any settings to test - running ccio.")
         ccio = True
@@ -124,15 +124,15 @@ if machname in ["theta", "vesta"]:
         module('load','cray-mpich/'+str(mpi_label_dots))
         #module('load','cray-hdf5-parallel')
         if execname == notset:
-            execname = "/lus-projects/datascience/rzamora/exerciser/run-user-guide/hdf5Exerciser-theta-new-7.7.0"
+            execname = "/home/zamora/hdf5_root_dir/exerciser/build-theta-opt/hdf5Exerciser-theta-opt-ccio"
         if outroot == notset:
-            outroot = "/lus-projects/datascience/rzamora/exerciser/run-user-guide"
-    elif machname in ["vesta"]:
+            outroot = "/lus-projects/datascience/rzamora/exerciser/ccio-hdf5"
+    elif machname in ["mira"]:
         lfs_size = "8m" # This value cannot be changed on BGQ
         if execname == notset:
-            execname = "./"
+            execname = "/home/zamora/hdf5_root_dir/exerciser/build-theta-opt/hdf5Exerciser-mira-opt-ccio"
         if outroot == notset:
-            outroot = "./"
+            outroot = "/projects/datascience/rzamora/exerciser/ccio-hdf5"
 # Desktop resource
 elif machname in ["mac"]:
     if not(ccio or romio_col or romio_ind):
@@ -301,9 +301,85 @@ if machname in ["theta"]:
             cmd = list(cmd_root); cmd.append("--indepio")
             subprocess.call(cmd, stdout=outf); print(cmd)
 
-elif machname in ["vesta"]:
+elif machname in ["mira"]:
 
-    pass
+    cmd = ["runjob"]
+    cmd.append("--np"); cmd.append(str(nranks)); cmd.append("-p"); cmd.append(str(ppn))
+    cmd.append("--block"); cmd.append(os.environ['COBALT_PARTNAME'])
+    cmd.append(":"); cmd.append(execname)
+    cmd.append("--numdims"); cmd.append(str(dim))
+    cmd.append("--minels")
+    for i in range(dim): cmd.append(str(minb))
+    cmd.append("--bufmult");
+    for i in range(dim): cmd.append(str(bmult));
+    cmd.append("--nsizes"); cmd.append(str(nsizes))
+    cmd.append("--dimranks")
+    for i in range(dim): cmd.append(str(dimranks[i]))
+    cmd.append("--metacoll"); cmd.append("--addattr"); #cmd.append("--derivedtype")
+    if perf: cmd.append("--perf")
+    if debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
+    cmd_root=list(cmd)
+
+    with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
+
+        # Run CCIO
+        if ccio:
+
+            # CCIO With Blocking I/O
+            os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
+            os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
+            os.environ["HDF5_ASYNC_IO"]="no"
+            subprocess.call(["echo","One-sided-blocking:"], stdout=outf)
+            cmd = list(cmd_root)
+            subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if False and topology:
+                os.environ["HDF5_TOPO_AGG"]="yes"
+                subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
+                cmd = list(cmd_root)
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if async:
+
+                # CCIO With Asynchronous I/O
+                os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
+                os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
+                os.environ["HDF5_ASYNC_IO"]="yes"
+                os.environ["HDF5_TOPO_AGG"]="no"
+                subprocess.call(["echo","One-sided-async:"], stdout=outf)
+                cmd = list(cmd_root)
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+                if topology:
+                    os.environ["HDF5_TOPO_AGG"]="yes"
+                    subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
+                    cmd = list(cmd_root)
+                    subprocess.call(cmd, stdout=outf); print(cmd)
+
+            # Reset env vars to non-ccio behavior
+            os.environ["HDF5_CUSTOM_AGG_WR"]="no"
+            os.environ["HDF5_CUSTOM_AGG_RD"]="no"
+            os.environ["HDF5_ASYNC_IO"]="no"
+            os.environ["HDF5_TOPO_AGG"]="no"
+
+        # Run ROMIO Collective I/O
+        if romio_col:
+
+            subprocess.call(["echo","romio two-phase:"], stdout=outf)
+            cmd = list(cmd_root)
+            subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if topology:
+                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
+                cmd = list(cmd_root); cmd.append("--topohint")
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+        # Run ROMIO Independent I/O
+        if romio_ind:
+
+            subprocess.call(["echo","romio indepio:"], stdout=outf)
+            cmd = list(cmd_root); cmd.append("--indepio")
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
 elif machname in ["mac"]:
 
