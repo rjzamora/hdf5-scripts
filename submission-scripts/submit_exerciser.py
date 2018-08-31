@@ -160,19 +160,19 @@ dimranks = [nranks]
 if dim>4: print("ERROR: >4 dimensions not set up"); dim=4
 for i in range(dim-1): dimranks.append(1)
 if dim==1:
-    if minb == notset: minb = 512
-    if bmult == notset: bmult = 4
-    if nsizes == notset: nsizes = 5 #7
+    if minb == notset: minb = 256
+    if bmult == notset: bmult = 8
+    if nsizes == notset: nsizes = 4
 elif dim==2:
-    if minb == notset: minb = 16
-    if bmult == notset: bmult = 2
-    if nsizes == notset: nsizes = 5 #7
+    if minb == notset: minb = 8
+    if bmult == notset: bmult = 4
+    if nsizes == notset: nsizes = 4
 elif dim==3:
     if minb == notset: minb = 8
     if bmult == notset: bmult = 2
-    if nsizes == notset: nsizes = 3 #4 #5
+    if nsizes == notset: nsizes = 4
 elif dim==4:
-    if minb == notset: minb = 4
+    if minb == notset: minb = 3
     if bmult == notset: bmult = 2
     if nsizes == notset: nsizes = 4
 else: print("ERROR: >4 dimensions not set up"); sys.exit(-1)
@@ -221,48 +221,6 @@ if machname in ["theta"]:
 
     with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
 
-        # Run CCIO
-        if ccio:
-
-            # CCIO With Blocking I/O
-            os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-            os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
-            os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
-            os.environ["HDF5_ASYNC_IO"]="no"
-            subprocess.call(["echo","One-sided-blocking:"], stdout=outf)
-            cmd = list(cmd_root)
-            subprocess.call(cmd, stdout=outf); print(cmd)
-
-            if False and topology:
-                os.environ["HDF5_TOPO_AGG"]="yes"
-                subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
-                cmd = list(cmd_root)
-                subprocess.call(cmd, stdout=outf); print(cmd)
-
-            if async:
-
-                # CCIO With Asynchronous I/O
-                os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
-                os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
-                os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
-                os.environ["HDF5_ASYNC_IO"]="yes"
-                os.environ["HDF5_TOPO_AGG"]="no"
-                subprocess.call(["echo","One-sided-async:"], stdout=outf)
-                cmd = list(cmd_root)
-                subprocess.call(cmd, stdout=outf); print(cmd)
-
-                if topology:
-                    os.environ["HDF5_TOPO_AGG"]="yes"
-                    subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
-                    cmd = list(cmd_root)
-                    subprocess.call(cmd, stdout=outf); print(cmd)
-
-            # Reset env vars to non-ccio behavior
-            os.environ["HDF5_CUSTOM_AGG_WR"]="no"
-            os.environ["HDF5_CUSTOM_AGG_RD"]="no"
-            os.environ["HDF5_ASYNC_IO"]="no"
-            os.environ["HDF5_TOPO_AGG"]="no"
-
         # Run ROMIO Collective I/O
         if romio_col:
 
@@ -301,6 +259,48 @@ if machname in ["theta"]:
             cmd = list(cmd_root); cmd.append("--indepio")
             subprocess.call(cmd, stdout=outf); print(cmd)
 
+        # Run CCIO
+        if ccio:
+
+            # CCIO With Blocking I/O
+            os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+            os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
+            os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
+            os.environ["HDF5_ASYNC_IO"]="no"
+            subprocess.call(["echo","One-sided-blocking:"], stdout=outf)
+            cmd = list(cmd_root)
+            subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if False and topology:
+                os.environ["HDF5_TOPO_AGG"]="yes"
+                subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
+                cmd = list(cmd_root)
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if async:
+
+                # CCIO With Asynchronous I/O
+                os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
+                os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
+                os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
+                os.environ["HDF5_ASYNC_IO"]="yes"
+                os.environ["HDF5_TOPO_AGG"]="no"
+                subprocess.call(["echo","One-sided-async:"], stdout=outf)
+                cmd = list(cmd_root)
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+                if topology:
+                    os.environ["HDF5_TOPO_AGG"]="yes"
+                    subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
+                    cmd = list(cmd_root)
+                    subprocess.call(cmd, stdout=outf); print(cmd)
+
+            # Reset env vars to non-ccio behavior
+            os.environ["HDF5_CUSTOM_AGG_WR"]="no"
+            os.environ["HDF5_CUSTOM_AGG_RD"]="no"
+            os.environ["HDF5_ASYNC_IO"]="no"
+            os.environ["HDF5_TOPO_AGG"]="no"
+
 elif machname in ["mira"]:
 
     cmd = ["runjob"]
@@ -321,6 +321,25 @@ elif machname in ["mira"]:
     cmd_root=list(cmd)
 
     with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
+
+        # Run ROMIO Collective I/O
+        if romio_col:
+
+            subprocess.call(["echo","romio two-phase:"], stdout=outf)
+            cmd = list(cmd_root)
+            subprocess.call(cmd, stdout=outf); print(cmd)
+
+            if topology:
+                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
+                cmd = list(cmd_root); cmd.append("--topohint")
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+        # Run ROMIO Independent I/O
+        if romio_ind:
+
+            subprocess.call(["echo","romio indepio:"], stdout=outf)
+            cmd = list(cmd_root); cmd.append("--indepio")
+            subprocess.call(cmd, stdout=outf); print(cmd)
 
         # Run CCIO
         if ccio:
@@ -361,25 +380,6 @@ elif machname in ["mira"]:
             os.environ["HDF5_CUSTOM_AGG_RD"]="no"
             os.environ["HDF5_ASYNC_IO"]="no"
             os.environ["HDF5_TOPO_AGG"]="no"
-
-        # Run ROMIO Collective I/O
-        if romio_col:
-
-            subprocess.call(["echo","romio two-phase:"], stdout=outf)
-            cmd = list(cmd_root)
-            subprocess.call(cmd, stdout=outf); print(cmd)
-
-            if topology:
-                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
-                cmd = list(cmd_root); cmd.append("--topohint")
-                subprocess.call(cmd, stdout=outf); print(cmd)
-
-        # Run ROMIO Independent I/O
-        if romio_ind:
-
-            subprocess.call(["echo","romio indepio:"], stdout=outf)
-            cmd = list(cmd_root); cmd.append("--indepio")
-            subprocess.call(cmd, stdout=outf); print(cmd)
 
 elif machname in ["mac"]:
 
