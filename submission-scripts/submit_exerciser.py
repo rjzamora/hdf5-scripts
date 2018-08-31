@@ -105,7 +105,7 @@ if not (machname in ["mac", "theta", "mira"]):
 
 # ALCF resource (use COBALT)
 if machname in ["theta", "mira"]:
-    if not(ccio or romio_col or romio_ind):
+    if not(ccio or romio_col or romio_ind or cray_col or cray_ind):
         print("You didn't provide any settings to test - running ccio.")
         ccio = True
     nodes=int(os.environ['COBALT_JOBSIZE'])
