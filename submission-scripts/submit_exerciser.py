@@ -66,6 +66,8 @@ parser.add_argument("--debug", dest="debug", action="store_true", default=False,
                     help="Set CCIO debug env variable [Default: False]")
 parser.add_argument("--topology", dest="topology", action="store_true", default=False,
                     help="Compare topology-aware cb agg selection [Default: False]")
+parser.add_argument("--rshift", dest="rshift", action="store_true", default=False,
+                    help="Shift ranks by ppn for read (avoid cache effects) [Default: False]")
 args = parser.parse_args()
 machname = args.machine
 execname = args.execname
@@ -92,6 +94,7 @@ if args.nsizes != notset: nsizes = int(args.nsizes)
 perf = args.perf
 debug = args.debug
 topology = args.topology
+rshift = args.rshift
 
 # ---------------------------------------------------------------------------- #
 #  Setup the basic properties of the run
@@ -215,6 +218,7 @@ if machname in ["theta"]:
     cmd.append("--dimranks")
     for i in range(dim): cmd.append(str(dimranks[i]))
     cmd.append("--metacoll"); cmd.append("--addattr"); #cmd.append("--derivedtype")
+    if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
     if perf: cmd.append("--perf")
     if debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
     cmd_root=list(cmd)
@@ -317,6 +321,7 @@ elif machname in ["mira"]:
     for i in range(dim): cmd.append(str(dimranks[i]))
     cmd.append("--metacoll"); cmd.append("--addattr"); #cmd.append("--derivedtype")
     if perf: cmd.append("--perf")
+    if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
     if debug: os.environ["HDF5_CUSTOM_AGG_DEBUG"]="yes"
     cmd_root=list(cmd)
 
@@ -395,6 +400,7 @@ elif machname in ["mac"]:
     cmd.append("--dimranks")
     for i in range(dim): cmd.append(str(dimranks[i]))
     cmd.append("--metacoll"); cmd.append("--addattr");
+    if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
     cmd_root=list(cmd)
 
     # Run ROMIO Collective I/O
