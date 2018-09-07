@@ -68,6 +68,8 @@ parser.add_argument("--topology", dest="topology", action="store_true", default=
                     help="Compare topology-aware cb agg selection [Default: False]")
 parser.add_argument("--rshift", dest="rshift", action="store_true", default=False,
                     help="Shift ranks by ppn for read (avoid cache effects) [Default: False]")
+parser.add_argument("--naggs", dest="naggs", default="0",
+                    help="Override the number of aggregators chosen by the system/algorithm [Default: 0]")
 args = parser.parse_args()
 machname = args.machine
 execname = args.execname
@@ -95,6 +97,11 @@ perf = args.perf
 debug = args.debug
 topology = args.topology
 rshift = args.rshift
+topohint = False
+if topology and (not ccio):
+	topology = False
+	topohint = True
+naggs = int(args.naggs)
 
 # ---------------------------------------------------------------------------- #
 #  Setup the basic properties of the run
@@ -233,7 +240,7 @@ if machname in ["theta"]:
             cmd = list(cmd_root)
             subprocess.call(cmd, stdout=outf); print(cmd)
 
-            if topology:
+            if topohint:
                 os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
                 cmd = list(cmd_root); cmd.append("--topohint")
@@ -266,6 +273,11 @@ if machname in ["theta"]:
         # Run CCIO
         if ccio:
 
+            # Set number of aggregators if we are overriding the default
+            if naggs > 0:
+                os.environ["HDF5_CB_NODES_OVERRIDE"]=str(naggs)
+                subprocess.call(["echo","HDF5_CB_NODES_OVERRIDE="+str(naggs)], stdout=outf)
+
             # CCIO With Blocking I/O
             os.environ["MPICH_MPIIO_CB_ALIGN"]="3"
             os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
@@ -275,8 +287,8 @@ if machname in ["theta"]:
             cmd = list(cmd_root)
             subprocess.call(cmd, stdout=outf); print(cmd)
 
-            if False and topology:
-                os.environ["HDF5_TOPO_AGG"]="yes"
+            if topology:
+                os.environ["HDF5_CUSTOM_TOPO"]="yes"
                 subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
                 cmd = list(cmd_root)
                 subprocess.call(cmd, stdout=outf); print(cmd)
@@ -294,7 +306,7 @@ if machname in ["theta"]:
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
                 if topology:
-                    os.environ["HDF5_TOPO_AGG"]="yes"
+                    os.environ["HDF5_CUSTOM_TOPO"]="yes"
                     subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
                     cmd = list(cmd_root)
                     subprocess.call(cmd, stdout=outf); print(cmd)
@@ -334,7 +346,7 @@ elif machname in ["mira"]:
             cmd = list(cmd_root)
             subprocess.call(cmd, stdout=outf); print(cmd)
 
-            if topology:
+            if topohint:
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
                 cmd = list(cmd_root); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
@@ -349,6 +361,11 @@ elif machname in ["mira"]:
         # Run CCIO
         if ccio:
 
+            # Set number of aggregators if we are overriding the default
+            if naggs > 0:
+                os.environ["HDF5_CB_NODES_OVERRIDE"]=str(naggs)
+                subprocess.call(["echo","HDF5_CB_NODES_OVERRIDE="+str(naggs)], stdout=outf)
+
             # CCIO With Blocking I/O
             os.environ["HDF5_CUSTOM_AGG_WR"]="yes"
             os.environ["HDF5_CUSTOM_AGG_RD"]="yes"
@@ -357,8 +374,8 @@ elif machname in ["mira"]:
             cmd = list(cmd_root)
             subprocess.call(cmd, stdout=outf); print(cmd)
 
-            if False and topology:
-                os.environ["HDF5_TOPO_AGG"]="yes"
+            if topology:
+                os.environ["HDF5_CUSTOM_TOPO"]="yes"
                 subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
                 cmd = list(cmd_root)
                 subprocess.call(cmd, stdout=outf); print(cmd)
@@ -375,7 +392,7 @@ elif machname in ["mira"]:
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
                 if topology:
-                    os.environ["HDF5_TOPO_AGG"]="yes"
+                    os.environ["HDF5_CUSTOM_TOPO"]="yes"
                     subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
                     cmd = list(cmd_root)
                     subprocess.call(cmd, stdout=outf); print(cmd)
@@ -412,7 +429,7 @@ elif machname in ["mac"]:
             cmd = list(cmd_root)
             subprocess.call(cmd, stdout=outf, stderr=outf); print(cmd)
 
-            if topology:
+            if topohint:
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf, stderr=outf)
                 cmd = list(cmd_root); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf, stderr=outf); print(cmd)
