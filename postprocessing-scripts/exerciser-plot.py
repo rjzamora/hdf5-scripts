@@ -12,15 +12,32 @@ KB = 1024
 MB = 1048576
 GB = 1073741824
 
-plt.style.use('ggplot')
+#plt.style.use('ggplot')
+#dirs = glob.glob('mpi.*.stripecount.*nodes.1024.*')
 dirs = glob.glob('mpi.*.stripecount.*')
 
 machine = 'theta'
 plots = [\
-{ 'ops': ['romio-2-phase', 'romio-2-phase-topo'], 'dim': 3 }
+
+#{ 'ops': ['One-sided', 'One-sided-topo'], 'dim': 1, 'nodes': [ 128 ], 'ppn': [ ] },
+#{ 'ops': ['One-sided', 'One-sided-topo'], 'dim': 1, 'nodes': [ 256 ], 'ppn': [ ] },
+#{ 'ops': ['One-sided', 'One-sided-topo'], 'dim': 1, 'nodes': [ 512 ], 'ppn': [ ] },
+#{ 'ops': ['One-sided', 'One-sided-topo'], 'dim': 1, 'nodes': [ 1024 ], 'ppn': [ ] },
+
+{ 'ops': ['romio-2-phase'], 'dim': 1, 'nodes': [ 512 ], 'ppn': [ ] },
+{ 'ops': ['cray-mpi-2-phase'], 'dim': 1, 'nodes': [ 512 ], 'ppn': [ ] },
+{ 'ops': ['cray-mpi-independent'], 'dim': 1, 'nodes': [ 512 ], 'ppn': [ ] },
+
+#{ 'ops': ['cray-mpi-2-phase', 'One-sided'], 'dim': 3, 'nodes': [ 128 ], 'ppn': [ ] },
+#{ 'ops': ['cray-mpi-2-phase', 'One-sided'], 'dim': 3, 'nodes': [ 256 ], 'ppn': [ ] },
+#{ 'ops': ['cray-mpi-2-phase', 'One-sided'], 'dim': 3, 'nodes': [ 512 ], 'ppn': [ ] },
+#{ 'ops': ['cray-mpi-2-phase', 'One-sided'], 'dim': 3, 'nodes': [ 1024 ], 'ppn': [ ] },
+
+
+#{ 'ops': ['romio-2-phase', 'romio-2-phase-topo'], 'dim': 3, 'nodes': [ 1024 ], 'ppn': [ ] }
 ]
 
-lustre_settings = [ [16, 1] ] # [count, size]
+lustre_settings = [ [48, 8] ] # [count, size]
 
 globalList = []
 for dir in dirs:
@@ -58,8 +75,11 @@ for dir in dirs:
                 fsplt = line.split()
                 if len(fsplt)>0:
 
-                    if fsplt[0]=='One-sided:':
+                    if fsplt[0]=='One-sided-blocking:':
                         d[ 'optype' ] = 'One-sided'
+
+                    if fsplt[0]=='One-sided-blocking-topo:':
+                        d[ 'optype' ] = 'One-sided-topo'
 
                     elif (fsplt[0]=='romio' and fsplt[1]=='two-phase:'):
                         d[ 'optype' ] = 'romio-2-phase'
@@ -122,13 +142,22 @@ df = pd.DataFrame.from_dict(globalList)
 ##df.to_csv('organized_data.csv')
 #sys.exit(0)
 
-df_grp = df.groupby(['machine','optype','numDims:','mpi','Bufsize','count','size']).mean().reset_index()
-groups = df_grp.groupby(['machine','optype','numDims:','mpi','count','size'])
+org_list = ['Bufsize','machine','optype','numDims:','mpi','count','size','nodes','ppn']
+mnind = {}; ind = None
+for item in org_list:
+    mnind[ item ] = ind
+    if ind == None: ind = 0
+    else: ind += 1
+
+df_grp = df.groupby(org_list).mean().reset_index()
+groups = df_grp.groupby(org_list[1:]) # Leave out 'Bufsize'
 
 for looptype in plots:
 
     allowed_ops = looptype['ops'] # List of allowed mpi types
     allowed_dim = looptype['dim']
+    allowed_nds = looptype['nodes']
+    allowed_ppn = looptype['ppn']
 
     f3, ax3 = plt.subplots(1, 2, figsize=(12, 6))
 
@@ -138,9 +167,16 @@ for looptype in plots:
     icnt=0
     for mname,machgrp in groups:
 
-        if not (mname[1] in allowed_ops): continue
-        if not (mname[2] == allowed_dim): continue
-        numdims = mname[2]
+        if not (mname[ mnind[ 'optype' ] ] in allowed_ops): continue
+        if not (mname[ mnind[ 'numDims:' ] ] == allowed_dim): continue
+        if len(allowed_nds) > 0:
+            if not (mname[ mnind[ 'nodes' ] ] in allowed_nds): continue
+        if len(allowed_ppn) > 0:
+            if not (mname[ mnind[ 'ppn' ] ] in allowed_ppn): continue
+        numdims = mname[ mnind[ 'numDims:' ] ]
+        nodes = mname[ mnind[ 'nodes' ] ]
+        ppn = mname[ mnind[ 'ppn' ] ]
+        mpi = mname[ mnind[ 'mpi' ] ]
 
         Bufsize = machgrp['Bufsize'].tolist()
         H5DWrite = machgrp['H5DWrite-Avg'].tolist()
@@ -170,7 +206,7 @@ for looptype in plots:
         if(str_use == 'cray-mpi-2-phase'): str_use = 'Collective I/O'
         if(str_use == 'cray-mpi-independent'): str_use = 'Independent I/O'
         if(str_use == 'One-sided'): str_use = 'One-sided Collective I/O'
-        strlbl = str_use+" - stripe_size: "+str( mname[5] )+" - stripe_count: "+str( mname[4] )
+        strlbl = str_use+" - stripe_size: "+str( mname[5] )+" - stripe_count: "+str( mname[4] )+" - mpi: "+mname[3]
         ind = np.arange(len(H5DWrite))
         width=0.03
 
@@ -192,6 +228,9 @@ for looptype in plots:
             ufmt = '_--'; ulw = 1
         else:
             ufmt = '_-'; ulw = 1.5
+
+        # Format override
+        ufmt = 's-'; ulw = 1.5
 
         ax3[0].errorbar(ind+width*icnt, RawWrBDWTH_Med, yerr=[itemdnWr, itemupWr], fmt='none', ecolor=ucol, lw=ulw)
         ax3[0].errorbar(ind+width*icnt, RawWrBDWTH_Med, yerr=[itemdnWr, itemupWr], fmt=ufmt+ucol, label=strlbl, lw=ulw)
