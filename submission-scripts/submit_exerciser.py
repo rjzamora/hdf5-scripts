@@ -352,25 +352,25 @@ elif machname in ["mira"]:
             if not topohint:
 
                 subprocess.call(["echo","romio two-phase:"], stdout=outf)
-                cmd = list(cmd_root_1); cmd.append( cmd_root_2[:] )
+                cmd = list( cmd_root_1 + cmd_root_2 )
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
             else:
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
                 cmd = list(cmd_root_1); cmd.append("--envs"); cmd.append("HDF5_CB_REV=no")
-                cmd.append( cmd_root_2[:] ); cmd.append("--topohint")
+                cmd = list( cmd + cmd_root_2 ); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
                 cmd = list(cmd_root_1); cmd.append("--envs"); cmd.append("HDF5_CB_REV=yes")
-                cmd.append( cmd_root_2[:] ); cmd.append("--topohint")
+                cmd = list( cmd + cmd_root_2 ); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
         # Run ROMIO Independent I/O
         if romio_ind:
 
             subprocess.call(["echo","romio indepio:"], stdout=outf)
-            cmd = list(cmd_root_1); cmd.append( cmd_root_2[:] ); cmd.append("--indepio")
+            cmd = list( cmd_root_1 + cmd_root_2 ) cmd.append("--indepio")
             subprocess.call(cmd, stdout=outf); print(cmd)
 
         # Run CCIO
@@ -392,7 +392,7 @@ elif machname in ["mira"]:
             if topology:
                 os.environ["HDF5_CUSTOM_TOPO"]="yes"
                 subprocess.call(["echo","One-sided-blocking-topo:"], stdout=outf)
-                cmd = list(cmd_root_1); cmd.append( cmd_root_2[:] )
+                cmd = list( cmd_root_1 + cmd_root_2 )
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
             if async:
@@ -403,13 +403,13 @@ elif machname in ["mira"]:
                 os.environ["HDF5_ASYNC_IO"]="yes"
                 os.environ["HDF5_TOPO_AGG"]="no"
                 subprocess.call(["echo","One-sided-async:"], stdout=outf)
-                cmd = list(cmd_root_1); cmd.append( cmd_root_2[:] )
+                cmd = list( cmd_root_1 + cmd_root_2 )
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
                 if topology:
                     os.environ["HDF5_CUSTOM_TOPO"]="yes"
                     subprocess.call(["echo","One-sided-async-topo:"], stdout=outf)
-                    cmd = list(cmd_root_1); cmd.append( cmd_root_2[:] )
+                    cmd = list( cmd_root_1 + cmd_root_2 )
                     subprocess.call(cmd, stdout=outf); print(cmd)
 
             # Reset env vars to non-ccio behavior
