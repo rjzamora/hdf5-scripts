@@ -342,14 +342,23 @@ elif machname in ["mira"]:
         # Run ROMIO Collective I/O
         if romio_col:
 
-            subprocess.call(["echo","romio two-phase:"], stdout=outf)
-            cmd = list(cmd_root)
-            subprocess.call(cmd, stdout=outf); print(cmd)
+            if not topohint:
 
-            if topohint:
+                subprocess.call(["echo","romio two-phase:"], stdout=outf)
+                cmd = list(cmd_root)
+                subprocess.call(cmd, stdout=outf); print(cmd)
+
+            else:
+                os.environ["HDF5_CB_REV"]="no"
                 subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
                 cmd = list(cmd_root); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
+
+                os.environ["HDF5_CB_REV"]="yes"
+                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
+                cmd = list(cmd_root); cmd.append("--topohint")
+                subprocess.call(cmd, stdout=outf); print(cmd)
+                os.environ["HDF5_CB_REV"]="no"
 
         # Run ROMIO Independent I/O
         if romio_ind:
