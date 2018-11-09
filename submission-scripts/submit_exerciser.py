@@ -361,7 +361,7 @@ elif machname in ["mira"]:
                 cmd = list( cmd + cmd_root_2 ); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
 
-                subprocess.call(["echo","romio two-phase-topo:"], stdout=outf)
+                subprocess.call(["echo","romio two-phase-topo-reversed:"], stdout=outf)
                 cmd = list(cmd_root_1); cmd.append("--envs"); cmd.append("HDF5_CB_REV=yes")
                 cmd = list( cmd + cmd_root_2 ); cmd.append("--topohint")
                 subprocess.call(cmd, stdout=outf); print(cmd)
@@ -370,7 +370,7 @@ elif machname in ["mira"]:
         if romio_ind:
 
             subprocess.call(["echo","romio indepio:"], stdout=outf)
-            cmd = list( cmd_root_1 + cmd_root_2 ) cmd.append("--indepio")
+            cmd = list( cmd_root_1 + cmd_root_2 ); cmd.append("--indepio")
             subprocess.call(cmd, stdout=outf); print(cmd)
 
         # Run CCIO
