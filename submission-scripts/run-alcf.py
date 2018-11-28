@@ -1,34 +1,35 @@
 #!/usr/bin/env python
 #COBALT -A datascience
-#COBALT -n 256
+#COBALT -n 128
 #COBALT -t 30
 
-machine   = "theta"
-lfs_count = 48
-lfs_size  = 8
-ppn       = 32
-cb_mult   = 1
-cb_div    = 1
-dim       = 3
-minb      = 8
-bmult     = 2
-nsizes    = 3
-dimranks  = [ 32, 16, 16 ]
-rshift    = True
-
 machine   = "mac"
-lfs_count = 4
-lfs_size  = 1
-ppn       = 8
-pps       = 2
-cb_mult   = 1
-cb_div    = 1
-dim       = 3
-minb      = 32
-bmult     = 2
-nsizes    = 1
-dimranks  = [ 4, 2, 2 ]
-rshift    = True
+
+if machine == "theta":
+    lfs_count = 48
+    lfs_size  = 8
+    ppn       = 32
+    cb_mult   = 1
+    cb_div    = 1
+    dim       = 3
+    minb      = 16
+    bmult     = 2
+    nsizes    = 3
+    dimranks  = [ 16, 16, 16 ]
+    rshift    = True
+else:
+    lfs_count = 4
+    lfs_size  = 1
+    ppn       = 8
+    pps       = 2
+    cb_mult   = 1
+    cb_div    = 1
+    dim       = 3
+    minb      = 32
+    bmult     = 2
+    nsizes    = 3
+    dimranks  = [ 4, 2, 2 ]
+    rshift    = True
 
 # Load python modules
 import subprocess
@@ -45,6 +46,7 @@ cb_nodes   = (lfs_count * cb_mult) / cb_div
 cb_stride  = (nranks) / cb_nodes
 fsb_size   = lfs_size * (1024 * 1024)
 fsb_count  = lfs_count
+pwdroot    = os.environ['PWD']
 
 if machine == "theta":
     # Allow module load/swap/list etc:
@@ -62,7 +64,7 @@ elif machine == "vesta":
 else:
     if ppn>0: os.environ['HDF5_CCIO_TOPO_PPN'] = str(ppn)
     if pps>0: os.environ['HDF5_CCIO_TOPO_PPS'] = str(pps)
-    execname  = "./hdf5Exerciser-mac-mpich"
+    execname  = pwdroot+"/hdf5Exerciser-mac-mpich"
 
 def export_envs( envs_dyn ):
 
@@ -147,7 +149,14 @@ def get_runjob_cmd( envs_dyn ):
 
     return cmd
 
-if machine == "mac": jobid = "0";
+rundir = pwdroot+"/stripecount."+str(lfs_count)+".size."+str(lfs_size)+".nodes."+str(nodes)+".ppn."+str(ppn)
+if not os.path.isdir(rundir): subprocess.call(["mkdir",rundir])
+os.chdir(rundir)
+if machine == "mac":
+    jobid_i = 0
+    while os.path.isdir( rundir+"/results."+str(jobid_i) ):
+        jobid_i += 1
+    jobid = str(jobid_i)
 else: jobid = os.environ['COBALT_JOBID']
 with open("results."+jobid, "a") as outf:
 
@@ -157,7 +166,7 @@ with open("results."+jobid, "a") as outf:
 
     # Blocking CCIO
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Blocking CCIO:"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [0] [Blocking-CCIO]:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
@@ -174,7 +183,7 @@ with open("results."+jobid, "a") as outf:
 
     # Pipe-lined CCIO
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Pipe-lined CCIO:"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [1] [Pipelined-CCIO]:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
@@ -191,7 +200,7 @@ with open("results."+jobid, "a") as outf:
 
     # Topology-aware CCIO
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Topology-Aware CCIO:"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [2] [Topology-Aware-CCIO]:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
@@ -207,7 +216,7 @@ with open("results."+jobid, "a") as outf:
 
 
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Bad-CB-Select CCIO:"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [3] [Bad-Agg-CCIO]:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
@@ -223,7 +232,7 @@ with open("results."+jobid, "a") as outf:
 
 
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Default MPIO VFD (COLECTIVE):"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [4] [Default-Collective]:"], stdout=outf)
     envs = [
     "HDF5_CCIO_WR=no", "HDF5_CCIO_RD=no",
     ]
@@ -232,7 +241,7 @@ with open("results."+jobid, "a") as outf:
 
 
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Default MPIO VFD (INDEPENDENT):"], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [5] [Default-Independent]:"], stdout=outf)
     cmd = list( get_runjob_cmd( envs ) ); cmd.append("--indepio"); print(cmd)
     subprocess.call(cmd, stdout=outf);
 
