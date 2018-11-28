@@ -1,20 +1,33 @@
 #!/usr/bin/env python
 #COBALT -A datascience
-#COBALT -n 128
+#COBALT -n 256
 #COBALT -t 30
 
 machine   = "theta"
 lfs_count = 48
 lfs_size  = 8
-
 ppn       = 32
 cb_mult   = 1
 cb_div    = 1
 dim       = 3
-minb      = 16
+minb      = 8
 bmult     = 2
 nsizes    = 3
-dimranks  = [ 16, 16, 16 ]
+dimranks  = [ 32, 16, 16 ]
+rshift    = True
+
+machine   = "mac"
+lfs_count = 4
+lfs_size  = 1
+ppn       = 8
+pps       = 2
+cb_mult   = 1
+cb_div    = 1
+dim       = 3
+minb      = 32
+bmult     = 2
+nsizes    = 1
+dimranks  = [ 4, 2, 2 ]
 rshift    = True
 
 # Load python modules
@@ -23,7 +36,10 @@ import os
 
 # Env vars that we wont change here:
 envs_const = [ ]
-nodes      = int(os.environ['COBALT_JOBSIZE'])
+if machine == "mac":
+    nodes      = 1
+else:
+    nodes      = int(os.environ['COBALT_JOBSIZE'])
 nranks     = ppn * nodes
 cb_nodes   = (lfs_count * cb_mult) / cb_div
 cb_stride  = (nranks) / cb_nodes
@@ -44,7 +60,9 @@ elif machine == "vesta":
     execname  = "/home/zamora/hdf5_root_dir/exerciser/build-opt-g-ccio/hdf5Exerciser-opt-g-ccio"
 
 else:
-    execname  = "./hdf5Exerciser-g-ccio"
+    if ppn>0: os.environ['HDF5_CCIO_TOPO_PPN'] = str(ppn)
+    if pps>0: os.environ['HDF5_CCIO_TOPO_PPS'] = str(pps)
+    execname  = "./hdf5Exerciser-mac-mpich"
 
 def export_envs( envs_dyn ):
 
@@ -129,7 +147,9 @@ def get_runjob_cmd( envs_dyn ):
 
     return cmd
 
-with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
+if machine == "mac": jobid = "0";
+else: jobid = os.environ['COBALT_JOBID']
+with open("results."+jobid, "a") as outf:
 
     if machine == "theta":
         # Set lustre stripe properties
@@ -137,28 +157,46 @@ with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
 
     # Blocking CCIO
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","CCIO with blocking I/O:"], stdout=outf)
+    subprocess.call(["echo","Blocking CCIO:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
-    "HDF5_CCIO_DEBUG=yes",
+    "HDF5_CCIO_DEBUG=no",
     "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
     "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
     "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
-    "HDF5_CCIO_TOPO_CB_SELECT=yes"
+    "HDF5_CCIO_TOPO_CB_SELECT=no"
     ]
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf)
 
+
     # Pipe-lined CCIO
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Full CCIO:"], stdout=outf)
+    subprocess.call(["echo","Pipe-lined CCIO:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
-    "HDF5_CCIO_DEBUG=yes",
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=yes",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
+    "HDF5_CCIO_TOPO_CB_SELECT=no"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
+
+
+    # Topology-aware CCIO
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","Topology-Aware CCIO:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
     "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
     "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=yes",
     "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
@@ -169,12 +207,12 @@ with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
 
 
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Full CCIO (BAD CB SELECT):"], stdout=outf)
+    subprocess.call(["echo","Bad-CB-Select CCIO:"], stdout=outf)
     envs = [
     "HDF5_CCIO_CB_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
     "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
-    "HDF5_CCIO_DEBUG=yes",
+    "HDF5_CCIO_DEBUG=no",
     "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
     "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=yes",
     "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=1",
@@ -185,7 +223,7 @@ with open("results."+os.environ['COBALT_JOBID'], "a") as outf:
 
 
     subprocess.call(["echo",""], stdout=outf)
-    subprocess.call(["echo","Default MPIO VFD:"], stdout=outf)
+    subprocess.call(["echo","Default MPIO VFD (COLECTIVE):"], stdout=outf)
     envs = [
     "HDF5_CCIO_WR=no", "HDF5_CCIO_RD=no",
     ]
