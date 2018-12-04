@@ -17,6 +17,20 @@ if machine == "theta":
     nsizes    = 3
     dimranks  = [ 16, 16, 16 ]
     rshift    = True
+    fd_agg    = False
+elif machine == "vesta":
+    lfs_count = 8
+    lfs_size  = 16
+    ppn       = 16
+    cb_mult   = 1
+    cb_div    = 1
+    dim       = 1
+    minb      = 4096
+    bmult     = 4
+    nsizes    = 3
+    dimranks  = [ 4096 ]
+    rshift    = True
+    fd_agg    = False
 else:
     lfs_count = 4
     lfs_size  = 1
@@ -27,9 +41,10 @@ else:
     dim       = 3
     minb      = 32
     bmult     = 2
-    nsizes    = 3
+    nsizes    = 2
     dimranks  = [ 4, 2, 2 ]
     rshift    = True
+    fd_agg    = True
 
 # Load python modules
 import subprocess
@@ -38,7 +53,7 @@ import os
 # Env vars that we wont change here:
 envs_const = [ ]
 if machine == "mac":
-    nodes      = 1
+    nodes      = 2
 else:
     nodes      = int(os.environ['COBALT_JOBSIZE'])
 nranks     = ppn * nodes
@@ -64,6 +79,7 @@ elif machine == "vesta":
 else:
     if ppn>0: os.environ['HDF5_CCIO_TOPO_PPN'] = str(ppn)
     if pps>0: os.environ['HDF5_CCIO_TOPO_PPS'] = str(pps)
+    if fd_agg: os.environ['HDF5_CCIO_FD_AGG']='yes'
     execname  = pwdroot+"/hdf5Exerciser-mac-mpich"
 
 def export_envs( envs_dyn ):
@@ -154,7 +170,7 @@ if not os.path.isdir(rundir): subprocess.call(["mkdir",rundir])
 os.chdir(rundir)
 if machine == "mac":
     jobid_i = 0
-    while os.path.isdir( rundir+"/results."+str(jobid_i) ):
+    while os.path.exists( rundir+"/results."+str(jobid_i) ):
         jobid_i += 1
     jobid = str(jobid_i)
 else: jobid = os.environ['COBALT_JOBID']
@@ -209,7 +225,7 @@ with open("results."+jobid, "a") as outf:
     "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
     "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=yes",
     "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
-    "HDF5_CCIO_TOPO_CB_SELECT=yes"
+    "HDF5_CCIO_TOPO_CB_SELECT=spread"
     ]
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf);

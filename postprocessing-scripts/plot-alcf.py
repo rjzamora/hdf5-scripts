@@ -14,19 +14,21 @@ GB = 1073741824
 
 #plt.style.use('ggplot')
 dirs = glob.glob('stripecount.*')
+nodecnt = 1024
+orient = 1 # 0 == vertical, 1 == horizontal
 
-machine = 'mac'
+machine = 'theta'
 plots = [\
-{ 'ops': ['default-collective', 'pipelined-ccio'], 'dim': 3, 'nodes': [  ], 'ppn': [ ] },
-{ 'ops': ['blocking-ccio', 'pipelined-ccio'], 'dim': 3, 'nodes': [  ], 'ppn': [ ] },
-{ 'ops': ['topology-aware-ccio', 'bad-agg-ccio'], 'dim': 3, 'nodes': [  ], 'ppn': [ ] },
+{ 'ops': ['default-collective', 'blocking-ccio'], 'dim': 3, 'nodes': [ nodecnt ], 'ppn': [ ] },
+{ 'ops': ['blocking-ccio', 'pipelined-ccio'], 'dim': 3, 'nodes': [ nodecnt ], 'ppn': [ ] },
+{ 'ops': ['topology-aware-ccio', 'bad-agg-ccio'], 'dim': 3, 'nodes': [ nodecnt ], 'ppn': [ ] },
 ]
 
 # Choose Metrics to plot (together in each plot)
 #   Note: Maximum of two Metrics in list
-#Metric_types = ['RawWrBDWTH','RawRdBDWTH']
+Metric_types = ['RawWrBDWTH','RawRdBDWTH']
 #Metric_types = ['H5DWrite','H5Dread']
-Metric_types = ['H5DWrite','H5Fflush']
+#Metric_types = ['H5DWrite','H5Fflush']
 #Metric_types = ['H5Dread','H5Fopen']
 
 lustre_settings = [ [48, 8], [4, 1] ] # [count, size]
@@ -146,7 +148,10 @@ for looptype in plots:
     allowed_nds = looptype['nodes']
     allowed_ppn = looptype['ppn']
 
-    f3, ax3 = plt.subplots(1, num_metrics, figsize=(6*num_metrics, 6))
+    if orient == 0:
+        f3, ax3 = plt.subplots(num_metrics, 1, figsize=(6, 5*num_metrics))
+    else:
+        f3, ax3 = plt.subplots(1, num_metrics, figsize=(6*num_metrics, 6))
     if num_metrics<2: ax3 = [ ax3 ]
 
     colorch=['k','b','g','r','c','m','k','b','g','r','c','m',];cind=0;
@@ -186,12 +191,24 @@ for looptype in plots:
         ucol = colorch[cind]
         ufmt = 's-'; ulw = 1.5
         str_use = str( mname[mnind['optype']] )
-        if(str_use == 'default-collective'): str_use = 'Default Collective I/O'
-        if(str_use == 'default-independent'): str_use = 'Default Independent I/O'
-        if(str_use == 'pipelined-ccio'): str_use = 'CCIO Collective I/O'
-        if(str_use == 'blocking-ccio'): str_use = 'Blocking CCIO'
-        if(str_use == 'topology-aware-ccio'): str_use = 'Topology-Aware CCIO'
-        if(str_use == 'bad-agg-ccio'): str_use = 'Naive Topology CCIO'
+        if(str_use == 'default-collective'):
+             str_use = 'Default Collective I/O'
+             ucol = 'k'
+        if(str_use == 'default-independent'):
+            str_use = 'Default Independent I/O'
+            ucol = 'k'
+        if(str_use == 'pipelined-ccio'):
+            str_use = 'Pipelined CCIO'
+            ucol = 'g'
+        if(str_use == 'blocking-ccio'):
+            str_use = 'Blocking CCIO'
+            ucol = 'b'
+        if(str_use == 'topology-aware-ccio'):
+            str_use = 'Topology-Aware CCIO'
+            ucol = 'r'
+        if(str_use == 'bad-agg-ccio'):
+            str_use = 'Naive Topology CCIO'
+            ucol = 'k'
         strlbl = str_use
         if label_stripe_count:
             strlbl = strlbl+" - stripe_count: "+str( mname[mnind['count']] )
@@ -205,10 +222,10 @@ for looptype in plots:
         for dict in Metrics:
             itemup=[];itemdn=[]
             for it in range(len( dict[ 'Med' ] )):
-                itdn = dict['Med'][it]-dict['Min'][it]; itemdn.append(itdn)
-                itup = dict['Max'][it]-dict['Med'][it]; itemup.append(itup)
-            ax3[pind].errorbar(ind+width*icnt, dict['Med'], yerr=[itemdn, itemup], fmt='none', ecolor=ucol, lw=ulw)
-            ax3[pind].errorbar(ind+width*icnt, dict['Med'], yerr=[itemdn, itemup], fmt=ufmt+ucol, label=strlbl, lw=ulw, capsize=5)
+                itdn = dict['Avg'][it]-dict['Min'][it]; itemdn.append(itdn)
+                itup = dict['Max'][it]-dict['Avg'][it]; itemup.append(itup)
+            #ax3[pind].errorbar(ind+width*icnt, dict['Avg'], yerr=[itemdn, itemup], fmt='none', ecolor=ucol, lw=ulw)
+            ax3[pind].errorbar(ind+width*icnt, dict['Avg'], yerr=[itemdn, itemup], fmt=ufmt+ucol, label=strlbl, lw=ulw, capsize=5)
             if dict['type']=='RawWrBDWTH' or dict['type']=='RawRdBDWTH':
                 if num_metrics>1:
                     if dict['type']=='RawWrBDWTH':
@@ -236,7 +253,10 @@ for looptype in plots:
         if metric_str=='RawRdBDWTH': metric_str = 'Raw H5Dread'
         f3.text(0.5, 0.925, str(numdims)+'D Dataset '+metric_str+' Performance \n( '+str(nodes*ppn)+' Processes, ppn='+str(ppn)+' )',horizontalalignment='center',color='black',weight='bold',size='large')
     else:
-        f3.text(0.5, 0.925, str(numdims)+'D Dataset Performance \n( '+str(nodes*ppn)+' Processes, ppn='+str(ppn)+' )',horizontalalignment='center',color='black',weight='bold',size='large')
+        if orient == 0:
+            f3.text(0.5, 0.95, str(numdims)+'D Dataset Performance \n( '+str(nodes*ppn)+' Processes, ppn='+str(ppn)+' )',horizontalalignment='center',color='black',weight='bold',size='large')
+        else:
+            f3.text(0.5, 0.925, str(numdims)+'D Dataset Performance \n( '+str(nodes*ppn)+' Processes, ppn='+str(ppn)+' )',horizontalalignment='center',color='black',weight='bold',size='large')
 
     for i in range( len(Metric_types) ):
         ax3[i].set_xlabel('Local Buffer Size')
@@ -245,8 +265,12 @@ for looptype in plots:
         ax3[i].set_yscale('log')
 
     if num_metrics>1:
-        ax3[0].legend(loc=9, bbox_to_anchor=(1.1, -0.15), ncol=2, shadow=True)
-        plt.subplots_adjust(left=0.08, bottom=0.24, right=0.96, top=None, wspace=None, hspace=None)
+        if orient == 0:
+            ax3[0].legend(loc=9, bbox_to_anchor=(0.5, -1.38), ncol=1, shadow=True)
+            plt.subplots_adjust(left=0.16, bottom=0.13, right=0.92, top=0.91, wspace=None, hspace=0.24)
+        else:
+            ax3[0].legend(loc=9, bbox_to_anchor=(1.1, -0.15), ncol=2, shadow=True)
+            plt.subplots_adjust(left=0.08, bottom=0.24, right=0.96, top=None, wspace=None, hspace=None)
     else:
         ax3[0].legend(loc='best', shadow=True)
 
