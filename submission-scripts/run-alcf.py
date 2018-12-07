@@ -30,18 +30,18 @@ elif machine == "vesta":
     nsizes    = 3
     dimranks  = [ 4096 ]
     rshift    = True
-    fd_agg    = False
+    fd_agg    = True
 else:
-    lfs_count = 4
+    lfs_count = 2
     lfs_size  = 1
-    ppn       = 8
-    pps       = 2
+    ppn       = 4
+    pps       = 1
     cb_mult   = 1
     cb_div    = 1
-    dim       = 3
-    minb      = 32
+    dim       = 1
+    minb      = 8 #64
     bmult     = 2
-    nsizes    = 2
+    nsizes    = 1
     dimranks  = [ 4, 2, 2 ]
     rshift    = True
     fd_agg    = True
@@ -53,15 +53,16 @@ import os
 # Env vars that we wont change here:
 envs_const = [ ]
 if machine == "mac":
-    nodes      = 2
+    nodes      = 1
 else:
     nodes      = int(os.environ['COBALT_JOBSIZE'])
 nranks     = ppn * nodes
 cb_nodes   = (lfs_count * cb_mult) / cb_div
 cb_stride  = (nranks) / cb_nodes
-fsb_size   = lfs_size * (1024 * 1024)
+fsb_size   = 64 #lfs_size * (1024 * 1024)
 fsb_count  = lfs_count
 pwdroot    = os.environ['PWD']
+nocheck    = False
 
 if machine == "theta":
     # Allow module load/swap/list etc:
@@ -119,6 +120,8 @@ def get_runjob_cmd( envs_dyn ):
             for i in range(dim): cmd.append(str(dimranks[i]))
         #cmd.append("--metacoll"); cmd.append("--addattr"); cmd.append("--derivedtype")
         if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
+        if nocheck:
+            cmd.append("--maxcheck");cmd.append("0")
 
     elif machine == "theta":
 
@@ -145,6 +148,8 @@ def get_runjob_cmd( envs_dyn ):
         for i in range(dim): cmd.append(str(dimranks[i]))
         #cmd.append("--metacoll"); cmd.append("--addattr"); cmd.append("--derivedtype")
         if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
+        if nocheck:
+            cmd.append("--maxcheck");cmd.append("0")
 
     else:
 
@@ -162,6 +167,9 @@ def get_runjob_cmd( envs_dyn ):
         for i in range(dim): cmd.append(str(dimranks[i]))
         #cmd.append("--metacoll"); cmd.append("--addattr"); cmd.append("--derivedtype")
         if rshift: cmd.append("--rshift"); cmd.append(str(ppn))
+        if nocheck:
+            cmd.append("--maxcheck");cmd.append("0")
+        #cmd.append("--keepfile")
 
     return cmd
 
@@ -180,7 +188,7 @@ with open("results."+jobid, "a") as outf:
         # Set lustre stripe properties
         subprocess.call(["lfs","setstripe","-c",str(lfs_count),"-S",str(lfs_size)+"m","."])
 
-    # Blocking CCIO
+    # CCIO (Default)
     subprocess.call(["echo",""], stdout=outf)
     subprocess.call(["echo","[EXPERIMENT] [0] [Blocking-CCIO]:"], stdout=outf)
     envs = [
@@ -196,7 +204,87 @@ with open("results."+jobid, "a") as outf:
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf)
 
+    # Topology-aware CCIO (Data)
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [1] [Topology-Aware-CCIO-Data]:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
+    "HDF5_CCIO_TOPO_CB_SELECT=data"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
 
+    # Topology-aware CCIO (Spread)
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [2] [Topology-Aware-CCIO-Spread]:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
+    "HDF5_CCIO_TOPO_CB_SELECT=spread"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
+
+    # Topology-aware CCIO (Random)
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [3] [Topology-Aware-CCIO-Random]:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=0",
+    "HDF5_CCIO_TOPO_CB_SELECT=random"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
+
+    # Topology-aware CCIO (First-Ranks)
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [4] [Topology-Aware-CCIO-First-Ranks]:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE=1",
+    "HDF5_CCIO_TOPO_CB_SELECT=no"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
+
+    # Topology-aware CCIO (First-Nodes)
+    subprocess.call(["echo",""], stdout=outf)
+    subprocess.call(["echo","[EXPERIMENT] [5] [Topology-Aware-CCIO-First-Nodes]:"], stdout=outf)
+    envs = [
+    "HDF5_CCIO_CB_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_SIZE="+str(fsb_size),
+    "HDF5_CCIO_FS_BLOCK_COUNT="+str(fsb_count),
+    "HDF5_CCIO_DEBUG=no",
+    "HDF5_CCIO_WR_METHOD=2", "HDF5_CCIO_RD_METHOD=2",
+    "HDF5_CCIO_WR=yes", "HDF5_CCIO_RD=yes", "HDF5_CCIO_ASYNC=no",
+    "HDF5_CCIO_CB_NODES="+str(cb_nodes), "HDF5_CCIO_CB_STRIDE="+str(ppn),
+    "HDF5_CCIO_TOPO_CB_SELECT=no"
+    ]
+    cmd = list( get_runjob_cmd( envs ) ); print(cmd)
+    subprocess.call(cmd, stdout=outf);
+
+    '''
     # Pipe-lined CCIO
     subprocess.call(["echo",""], stdout=outf)
     subprocess.call(["echo","[EXPERIMENT] [1] [Pipelined-CCIO]:"], stdout=outf)
@@ -212,7 +300,6 @@ with open("results."+jobid, "a") as outf:
     ]
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf);
-
 
     # Topology-aware CCIO
     subprocess.call(["echo",""], stdout=outf)
@@ -246,7 +333,6 @@ with open("results."+jobid, "a") as outf:
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf);
 
-
     subprocess.call(["echo",""], stdout=outf)
     subprocess.call(["echo","[EXPERIMENT] [4] [Default-Collective]:"], stdout=outf)
     envs = [
@@ -255,11 +341,11 @@ with open("results."+jobid, "a") as outf:
     cmd = list( get_runjob_cmd( envs ) ); print(cmd)
     subprocess.call(cmd, stdout=outf);
 
-
     subprocess.call(["echo",""], stdout=outf)
     subprocess.call(["echo","[EXPERIMENT] [5] [Default-Independent]:"], stdout=outf)
     cmd = list( get_runjob_cmd( envs ) ); cmd.append("--indepio"); print(cmd)
     subprocess.call(cmd, stdout=outf);
+    '''
 
 # ---------------------------------------------------------------------------- #
 #  Done.
