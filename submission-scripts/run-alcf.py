@@ -19,8 +19,8 @@ if machine == "theta":
     rshift    = True
     fd_agg    = False
 elif machine == "vesta":
-    lfs_count = 8
-    lfs_size  = 16
+    lfs_count = 16 
+    lfs_size  = 8 
     ppn       = 16
     cb_mult   = 1
     cb_div    = 1
@@ -59,7 +59,7 @@ else:
 nranks     = ppn * nodes
 cb_nodes   = (lfs_count * cb_mult) / cb_div
 cb_stride  = (nranks) / cb_nodes
-fsb_size   = 64 #lfs_size * (1024 * 1024)
+fsb_size   = lfs_size * (1024 * 1024)
 fsb_count  = lfs_count
 pwdroot    = os.environ['PWD']
 nocheck    = False
@@ -75,7 +75,7 @@ if machine == "theta":
 
 elif machine == "vesta":
     envs_const.append("BGLOCKLESSMPIO_F_TYPE=0x47504653")
-    execname  = "/home/zamora/hdf5_root_dir/exerciser/build-opt-g-ccio/hdf5Exerciser-opt-g-ccio"
+    execname  = "/home/zamora/hdf5_root_dir/exerciser/build-opt-g-ccio-xl/hdf5Exerciser-opt-g-ccio"
 
 else:
     if ppn>0: os.environ['HDF5_CCIO_TOPO_PPN'] = str(ppn)
